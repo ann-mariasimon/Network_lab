@@ -1,0 +1,103 @@
+// udp_server_palindrome.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+
+int isPalindrome(int num) {
+    int original = num, rev = 0;
+    while (num > 0) {
+        rev = rev * 10 + (num % 10);
+        num /= 10;
+    }
+    return original == rev;
+}
+
+int main() {
+    int port = 3001;
+    int server_sock;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t addr_size = sizeof(client_addr);
+    char buffer[1024];
+
+    server_sock = socket(AF_INET, SOCK_DGRAM, 0);
+    printf("[+]UDP server socket created.\n");
+
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = port;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+
+    bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr));
+    printf("[+]Bind to the port number: %d\n", port);
+
+    while (1) {
+        bzero(buffer, 1024);
+        recvfrom(server_sock, buffer, 1024, 0, (struct sockaddr*)&client_addr, &addr_size);
+
+        if (strcmp(buffer, "EXIT\n") == 0)
+            break;
+
+        int number = atoi(buffer);
+        printf("Received number from client: %d\n", number);
+
+        bzero(buffer, 1024);
+        if (isPalindrome(number))
+            strcpy(buffer, "Palindrome");
+        else
+            strcpy(buffer, "Not Palindrome");
+
+        sendto(server_sock, buffer, strlen(buffer), 0, (struct sockaddr*)&client_addr, addr_size);
+    }
+
+    close(server_sock);
+    printf("[+]Server socket closed.\n");
+
+    return 0;
+}
+
+
+// udp_client_palindrome.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+
+int main() {
+    char *ip = "127.0.0.1";
+    int port = 3001;
+
+    int sock;
+    struct sockaddr_in server_addr;
+    socklen_t addr_size = sizeof(server_addr);
+    char buffer[1024];
+
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    printf("[+]UDP client socket created.\n");
+
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = port;
+    server_addr.sin_addr.s_addr = inet_addr(ip);
+
+    while (1) {
+        bzero(buffer, 1024);
+        printf("Enter a number (or type EXIT to quit): ");
+        fgets(buffer, 1024, stdin);
+        if (strcmp(buffer, "EXIT\n") == 0)
+            break;
+
+        sendto(sock, buffer, strlen(buffer), 0, (struct sockaddr*)&server_addr, addr_size);
+
+        bzero(buffer, 1024);
+        recvfrom(sock, buffer, sizeof(buffer), 0, (struct sockaddr*)&server_addr, &addr_size);
+        printf("Server: %s\n", buffer);
+    }
+
+    close(sock);
+    printf("[+]Client socket closed.\n");
+
+    return 0;
+}
