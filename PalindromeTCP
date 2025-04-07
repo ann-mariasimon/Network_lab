@@ -1,0 +1,101 @@
+// server.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <arpa/inet.h>
+#define PORT 3001
+
+int isPalindrome(int num) {
+    int original = num;
+    int reversed = 0;
+    while (num != 0) {
+        reversed = reversed * 10 + num % 10;
+        num /= 10;
+    }
+    return original == reversed;
+}
+
+int main() {
+    int sockfd, newsockfd, number;
+    struct sockaddr_in serv_addr, cli_addr;
+    socklen_t addr_size;
+    char result[100];
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        exit(1);
+    }
+    printf("Socket created.\n");
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+
+    bind(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+    printf("Binded to port %d.\n", PORT);
+
+    listen(sockfd, 5);
+    printf("Waiting for client...\n");
+
+    addr_size = sizeof(cli_addr);
+    newsockfd = accept(sockfd, (struct sockaddr*)&cli_addr, &addr_size);
+    printf("Client connected.\n");
+
+    recv(newsockfd, &number, sizeof(number), 0);
+    printf("Received number: %d\n", number);
+
+    if (isPalindrome(number))
+        strcpy(result, "Palindrome");
+    else
+        strcpy(result, "Not a Palindrome");
+
+    send(newsockfd, result, strlen(result), 0);
+    printf("Result sent to client.\n");
+
+    close(newsockfd);
+    close(sockfd);
+    return 0;
+}
+
+
+
+// client.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <arpa/inet.h>
+#define PORT 3001
+
+int main() {
+    int sockfd, number;
+    struct sockaddr_in serv_addr;
+    char result[100];
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        exit(1);
+    }
+    printf("Socket created.\n");
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+    serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+    printf("Connected to server.\n");
+
+    printf("Enter a number: ");
+    scanf("%d", &number);
+
+    send(sockfd, &number, sizeof(number), 0);
+    recv(sockfd, result, sizeof(result), 0);
+
+    printf("Server says: %s\n", result);
+
+    close(sockfd);
+    return 0;
+}
